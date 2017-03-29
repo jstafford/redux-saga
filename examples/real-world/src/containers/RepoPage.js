@@ -7,10 +7,15 @@ import List from '../components/List'
 
 
 class RepoPage extends Component {
-  constructor(props) {
-    super(props)
-    this.renderUser = this.renderUser.bind(this)
-    this.handleLoadMoreClick = this.handleLoadMoreClick.bind(this)
+  static propTypes = {
+    repo: PropTypes.object,
+    fullName: PropTypes.string.isRequired,
+    name: PropTypes.string.isRequired,
+    owner: PropTypes.object,
+    stargazers: PropTypes.array.isRequired,
+    stargazersPagination: PropTypes.object,
+    loadRepoPage: PropTypes.func.isRequired,
+    loadMoreStargazers: PropTypes.func.isRequired
   }
 
   componentWillMount() {
@@ -23,16 +28,13 @@ class RepoPage extends Component {
     }
   }
 
-  handleLoadMoreClick() {
+  handleLoadMoreClick = () => {
     console.log('load more', this.props.loadMoreStargazers)
     this.props.loadMoreStargazers(this.props.fullName)
   }
 
   renderUser(user) {
-    return (
-      <User user={user}
-            key={user.login} />
-    )
+    return <User user={user} key={user.login} />
   }
 
   render() {
@@ -45,7 +47,7 @@ class RepoPage extends Component {
     return (
       <div>
         <Repo repo={repo}
-                    owner={owner} />
+              owner={owner} />
         <hr />
         <List renderItem={this.renderUser}
               items={stargazers}
@@ -57,19 +59,12 @@ class RepoPage extends Component {
   }
 }
 
-RepoPage.propTypes = {
-  repo: PropTypes.object,
-  fullName: PropTypes.string.isRequired,
-  name: PropTypes.string.isRequired,
-  owner: PropTypes.object,
-  stargazers: PropTypes.array.isRequired,
-  stargazersPagination: PropTypes.object,
-  loadRepoPage: PropTypes.func.isRequired,
-  loadMoreStargazers: PropTypes.func.isRequired
-}
+const mapStateToProps = (state, ownProps) => {
+  // We need to lower case the login/name due to the way GitHub's API behaves.
+  // Have a look at ../middleware/api.js for more details.
+  const login = ownProps.params.login.toLowerCase()
+  const name = ownProps.params.name.toLowerCase()
 
-function mapStateToProps(state) {
-  const { login, name } = state.router.params
   const {
     pagination: { stargazersByRepo },
     entities: { users, repos }

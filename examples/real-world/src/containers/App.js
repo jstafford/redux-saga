@@ -5,10 +5,15 @@ import Explore from '../components/Explore'
 
 
 class App extends Component {
-  constructor(props) {
-    super(props)
-    this.handleChange = this.handleChange.bind(this)
-    this.handleDismissClick = this.handleDismissClick.bind(this)
+  static propTypes = {
+    // Injected by React Redux
+    errorMessage: PropTypes.string,
+    inputValue: PropTypes.string.isRequired,
+    navigate: PropTypes.func.isRequired,
+    updateRouterState: PropTypes.func.isRequired,
+    resetErrorMessage: PropTypes.func.isRequired,
+    // Injected by React Router
+    children: PropTypes.node
   }
 
   componentWillMount() {
@@ -26,12 +31,12 @@ class App extends Component {
       })
   }
 
-  handleDismissClick(e) {
+  handleDismissClick = e => {
     this.props.resetErrorMessage()
     e.preventDefault()
   }
 
-  handleChange(nextValue) {
+  handleChange = nextValue => {
     this.props.navigate(`/${nextValue}`)
   }
 
@@ -67,23 +72,10 @@ class App extends Component {
   }
 }
 
-App.propTypes = {
-  // Injected by React Redux
-  errorMessage: PropTypes.string,
-  inputValue: PropTypes.string.isRequired,
-  navigate: PropTypes.func.isRequired,
-  updateRouterState: PropTypes.func.isRequired,
-  resetErrorMessage: PropTypes.func.isRequired,
-  // Injected by React Router
-  children: PropTypes.node
-}
-
-function mapStateToProps(state) {
-  return {
-    errorMessage: state.errorMessage,
-    inputValue: state.router.pathname.substring(1)
-  }
-}
+const mapStateToProps = (state, ownProps) => ({
+  errorMessage: state.errorMessage,
+  inputValue: ownProps.location.pathname.substring(1)
+})
 
 export default connect(mapStateToProps, {
   navigate,
