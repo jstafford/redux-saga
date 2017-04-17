@@ -7,9 +7,10 @@ import { history } from './services'
 import routes from './routes'
 import Root from './containers/Root'
 import configureStore from './store/configureStore'
+import initialState from './store/initialState'
 import rootSaga from './sagas'
 
-const store = configureStore(window.__INITIAL_STATE__)
+const store = configureStore(initialState)
 store.runSaga(rootSaga)
 
 render(

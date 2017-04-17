@@ -18,13 +18,16 @@ const getNextPageUrl = (response) => {
 }
 
 const API_ROOT = 'https://api.github.com/'
+const API_VERSION = 'application/vnd.github.v3+json'
 
 // Fetches an API response and normalizes the result JSON according to schema.
 // This makes every API response have the same shape, regardless of how nested it was.
 const callApi = (endpoint, schema) => {
   const fullUrl = (endpoint.indexOf(API_ROOT) === -1) ? API_ROOT + endpoint : endpoint
+  const headers = new Headers({ 'Accept': API_VERSION })
+  const options = { 'headers': headers }
 
-  return fetch(fullUrl)
+  return fetch(fullUrl, options)
     .then(response =>
       response.json().then(json => ({ json, response }))
     ).then(({ json, response }) => {

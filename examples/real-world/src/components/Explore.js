@@ -9,26 +9,35 @@ class Explore extends Component {
     onChange: PropTypes.func.isRequired
   }
 
+  constructor (props) {
+    super(props)
+    // inputElement is an instance variable used to hold the DOM node
+    // for the input field. It is used by the keyup and onChange callbacks.
+    // See https://facebook.github.io/react/docs/refs-and-the-dom.html for
+    // details about the new model of storing refs, and deprication of
+    // string refs
+    this.inputElement = null
+  }
+
   componentWillReceiveProps (nextProps) {
     if (nextProps.value !== this.props.value) {
       // Generally mutating DOM is a bad idea in React components,
       // but doing this for a single uncontrolled field is less fuss
       // than making it controlled and maintaining a state for it.
-      this.refs.input.value = nextProps.value
+      this.inputElement.value = nextProps.value
     }
   }
 
   render () {
     const {value, onChange} = this.props
-    const refs = this.refs
     return (
       <div>
         <p>Type a username or repo full name and hit 'Go':</p>
         <input size='45'
-          ref='input'
+          ref={(input) => {this.inputElement = input}}
           defaultValue={value}
-          onKeyUp={(e) => (13 === e.keyCode ? onChange(refs.input.value) : true)} />
-        <button onClick={() => onChange(refs.input.value)}>
+          onKeyUp={(e) => (13 === e.keyCode ? onChange(this.inputElement.value) : true)} />
+        <button onClick={() => onChange(this.inputElement.value)}>
           Go!
         </button>
         <p>
