@@ -1,27 +1,30 @@
-import React, { PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React, { Component } from 'react'
 import { Link } from 'react-router'
 
-const User = ({ user }) => {
-  const { login, avatarUrl, name } = user
+class User extends Component {
+  static propTypes = {
+    user: PropTypes.shape({
+      login: PropTypes.string.isRequired,
+      avatarUrl: PropTypes.string.isRequired,
+      name: PropTypes.string
+    }).isRequired
+  }
 
-  return (
-    <div className="User">
-      <Link to={`/${login}`}>
-        <img src={avatarUrl} alt={login} width="72" height="72" />
-        <h3>
-          {login} {name && <span>({name})</span>}
-        </h3>
-      </Link>
-    </div>
-  )
-}
+  render () {
+    const { login, avatarUrl, name } = this.props.user
 
-User.propTypes = {
-  user: PropTypes.shape({
-    login: PropTypes.string.isRequired,
-    avatarUrl: PropTypes.string.isRequired,
-    name: PropTypes.string
-  }).isRequired
+    return (
+      <div className='User'>
+        <Link to={`/${login}`}>
+          <img src={avatarUrl} width='72' height='72' alt={name}/>
+          <h3>
+            {login} {name && <span>({name})</span>}
+          </h3>
+        </Link>
+      </div>
+    )
+  }
 }
 
 export default User

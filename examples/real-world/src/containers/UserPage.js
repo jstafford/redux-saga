@@ -1,10 +1,11 @@
-import React, { Component, PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React, { Component } from 'react'
 import { connect } from 'react-redux'
-import { loadUserPage, loadMoreStarred} from '../actions'
+import zip from 'lodash.zip'
+import { loadUserPage, loadMoreStarred } from '../actions'
 import User from '../components/User'
 import Repo from '../components/Repo'
 import List from '../components/List'
-import zip from 'lodash/zip'
 
 class UserPage extends Component {
   static propTypes = {
@@ -17,31 +18,19 @@ class UserPage extends Component {
     loadMoreStarred: PropTypes.func.isRequired
   }
 
-  componentWillMount() {
+  componentWillMount () {
     this.props.loadUserPage(this.props.login)
   }
 
-  componentWillReceiveProps(nextProps) {
+  componentWillReceiveProps (nextProps) {
     if (this.props.login !== nextProps.login) {
       this.props.loadUserPage(nextProps.login)
     }
   }
 
-  handleLoadMoreClick = () => {
-    this.props.loadMoreStarred(this.props.login)
-  }
+  render () {
+    const { user, login, loadMoreStarred } = this.props
 
-  renderRepo([ repo, owner ]) {
-    return (
-      <Repo
-        repo={repo}
-        owner={owner}
-        key={repo.fullName} />
-    )
-  }
-
-  render() {
-    const { user, login } = this.props
     if (!user) {
       return <h1><i>{`Loading ${login}’s profile...`}</i></h1>
     }
@@ -51,21 +40,21 @@ class UserPage extends Component {
       <div>
         <User user={user} />
         <hr />
-        <List renderItem={this.renderRepo}
-              items={zip(starredRepos, starredRepoOwners)}
-              onLoadMoreClick={this.handleLoadMoreClick}
-              loadingLabel={`Loading ${login}’s starred...`}
-              {...starredPagination} />
+        <List renderItem={([repo, owner]) =>
+            (<Repo repo={repo} owner={owner} key={repo.fullName} />)}
+          items={zip(starredRepos, starredRepoOwners)}
+          onLoadMoreClick={() => (loadMoreStarred(login))}
+          loadingLabel={`Loading ${login}’s starred...`}
+          {...starredPagination} />
       </div>
     )
   }
 }
 
-const mapStateToProps = (state, ownProps) => {
+const mapStateToProps = (state) => {
   // We need to lower case the login due to the way GitHub's API behaves.
-  // Have a look at ../middleware/api.js for more details.
-  const login = ownProps.params.login.toLowerCase()
-
+  // Have a look at ../services/api.js for more details.
+  const login = state.router.params.login.toLowerCase()
   const {
     pagination: { starredByUser },
     entities: { users, repos }

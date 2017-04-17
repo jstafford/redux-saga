@@ -1,6 +1,7 @@
-import React, { Component, PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React, { Component } from 'react'
 
-export default class List extends Component {
+class List extends Component {
   static propTypes = {
     loadingLabel: PropTypes.string.isRequired,
     pageCount: PropTypes.number,
@@ -16,18 +17,18 @@ export default class List extends Component {
     loadingLabel: 'Loading...'
   }
 
-  renderLoadMore() {
+  renderLoadMore () {
     const { isFetching, onLoadMoreClick } = this.props
     return (
       <button style={{ fontSize: '150%' }}
-              onClick={onLoadMoreClick}
-              disabled={isFetching}>
+        onClick={onLoadMoreClick}
+        disabled={isFetching}>
         {isFetching ? 'Loading...' : 'Load More'}
       </button>
     )
   }
 
-  render() {
+  render () {
     const {
       isFetching, nextPageUrl, pageCount,
       items, renderItem, loadingLabel
@@ -51,3 +52,5 @@ export default class List extends Component {
     )
   }
 }
+
+export default List

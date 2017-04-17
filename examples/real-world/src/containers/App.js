@@ -1,8 +1,8 @@
-import React, { Component, PropTypes } from 'react'
+import PropTypes from 'prop-types'
+import React, { Component } from 'react'
 import { connect } from 'react-redux'
 import { navigate, updateRouterState, resetErrorMessage } from '../actions'
 import Explore from '../components/Explore'
-
 
 class App extends Component {
   static propTypes = {
@@ -16,32 +16,24 @@ class App extends Component {
     children: PropTypes.node
   }
 
-  componentWillMount() {
+  componentWillMount () {
     this.props.updateRouterState({
       pathname: this.props.location.pathname,
-      params  : this.props.params
+      params: this.props.params
     })
   }
 
-  componentWillReceiveProps(nextProps) {
-    if(this.props.location.pathname !== nextProps.location.pathname)
+  componentWillReceiveProps (nextProps) {
+    if (this.props.location.pathname !== nextProps.location.pathname) {
       this.props.updateRouterState({
         pathname: nextProps.location.pathname,
-        params  : nextProps.params
+        params: nextProps.params
       })
+    }
   }
 
-  handleDismissClick = e => {
-    this.props.resetErrorMessage()
-    e.preventDefault()
-  }
-
-  handleChange = nextValue => {
-    this.props.navigate(`/${nextValue}`)
-  }
-
-  renderErrorMessage() {
-    const { errorMessage } = this.props
+  renderErrorMessage () {
+    const { errorMessage, resetErrorMessage } = this.props
     if (!errorMessage) {
       return null
     }
@@ -50,20 +42,24 @@ class App extends Component {
       <p style={{ backgroundColor: '#e99', padding: 10 }}>
         <b>{errorMessage}</b>
         {' '}
-        (<a href="#"
-            onClick={this.handleDismissClick}>
+        (<a href='#'
+          onClick={(e) => {
+            resetErrorMessage()
+            e.preventDefault()
+            return false
+          }}>
           Dismiss
         </a>)
       </p>
     )
   }
 
-  render() {
-    const { children, inputValue } = this.props
+  render () {
+    const { children, inputValue, navigate } = this.props
     return (
       <div>
         <Explore value={inputValue}
-                 onChange={this.handleChange} />
+          onChange={(nextValue) => (navigate(`/${nextValue}`))} />
         <hr />
         {this.renderErrorMessage()}
         {children}
@@ -72,9 +68,9 @@ class App extends Component {
   }
 }
 
-const mapStateToProps = (state, ownProps) => ({
+const mapStateToProps = (state) => ({
   errorMessage: state.errorMessage,
-  inputValue: ownProps.location.pathname.substring(1)
+  inputValue: state.router.pathname.substring(1)
 })
 
 export default connect(mapStateToProps, {

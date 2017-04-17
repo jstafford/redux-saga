@@ -1,9 +1,9 @@
 import { schema, normalize } from 'normalizr'
 import { camelizeKeys } from 'humps'
-import 'isomorphic-fetch'
+import fetch from 'isomorphic-fetch'
 
 // Extracts the next page URL from Github API response.
-function getNextPageUrl(response) {
+const getNextPageUrl = (response) => {
   const link = response.headers.get('link')
   if (!link) {
     return null
@@ -21,7 +21,7 @@ const API_ROOT = 'https://api.github.com/'
 
 // Fetches an API response and normalizes the result JSON according to schema.
 // This makes every API response have the same shape, regardless of how nested it was.
-function callApi(endpoint, schema) {
+const callApi = (endpoint, schema) => {
   const fullUrl = (endpoint.indexOf(API_ROOT) === -1) ? API_ROOT + endpoint : endpoint
 
   return fetch(fullUrl)
@@ -44,7 +44,6 @@ function callApi(endpoint, schema) {
       response => ({response}),
       error => ({error: error.message || 'Something bad happened'})
     )
-
 }
 
 // We use this Normalizr schemas to transform API responses from a nested form
@@ -55,13 +54,18 @@ function callApi(endpoint, schema) {
 
 // Read more about Normalizr: https://github.com/gaearon/normalizr
 
+// GitHub's API may return results with uppercase letters while the query
+// doesn't contain any. For example, "someuser" could result in "SomeUser"
+// leading to a frozen UI as it wouldn't find "someuser" in the entities.
+// That's why we're forcing lower cases down there.
+
 // Schemas for Github API responses.
-const userSchema = new schema.Entity('users', {
-  idAttribute: 'login'
+const userSchema = new schema.Entity('users', {}, {
+  idAttribute: user => user.login.toLowerCase()
 })
 
-const repoSchema = new schema.Entity('repos', {
-  idAttribute: 'fullName'
+const repoSchema = new schema.Entity('repos', {}, {
+  idAttribute: repo => repo.fullName.toLowerCase()
 })
 
 repoSchema.define({
