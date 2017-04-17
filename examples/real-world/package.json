@@ -18,15 +18,15 @@
   },
   "dependencies": {
     "humps": "^2.0.0",
-    "lodash": "^4.16.1",
+    "lodash": "^4.17.4",
     "normalizr": "^3.2.2",
-    "react": "^15.3.0",
-    "react-dom": "^15.3.0",
-    "react-redux": "^5.0.3",
+    "react": "^15.5.4",
+    "react-dom": "^15.5.4",
+    "react-redux": "^5.0.4",
     "react-router": "3.0.2",
-    "react-router-redux": "^4.0.5",
+    "react-router-redux": "^4.0.8",
     "redux": "^3.6.0",
-    "redux-saga": "^0.14.4"
+    "redux-saga": "^0.14.6"
   },
   "devDependencies": {
     "react-scripts": "^0.9.5",
