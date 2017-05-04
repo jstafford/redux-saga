@@ -1,9 +1,10 @@
-import { sym, is, ident, check, deprecate, SELF_CANCELLATION } from './utils'
+import { sym, is, ident, check, deprecate, updateIncentive, createSetContextWarning, SELF_CANCELLATION } from './utils'
 import { takeEveryHelper, takeLatestHelper, throttleHelper } from './sagaHelpers'
 
 const IO             = sym('IO')
 const TAKE           = 'TAKE'
 const PUT            = 'PUT'
+const ALL            = 'ALL'
 const RACE           = 'RACE'
 const CALL           = 'CALL'
 const CPS            = 'CPS'
@@ -14,11 +15,10 @@ const SELECT         = 'SELECT'
 const ACTION_CHANNEL = 'ACTION_CHANNEL'
 const CANCELLED      = 'CANCELLED'
 const FLUSH          = 'FLUSH'
+const GET_CONTEXT    = 'GET_CONTEXT'
+const SET_CONTEXT    = 'SET_CONTEXT'
 
 const TEST_HINT = '\n(HINT: if you are getting this errors in tests, consider using createMockTask from redux-saga/utils)'
-
-const deprecationWarning = (deprecated, preferred) =>
-  `${ deprecated } has been deprecated in favor of ${ preferred }, please update your code`
 
 const effect = (type, payload) => ({[IO]: true, [type]: payload})
 
@@ -41,7 +41,7 @@ take.maybe = (...args) => {
   return eff
 }
 
-export const takem = deprecate(take.maybe, deprecationWarning('takem', 'take.maybe'))
+export const takem = deprecate(take.maybe, updateIncentive('takem', 'take.maybe'))
 
 export function put(channel, action) {
   if(arguments.length > 1) {
@@ -62,7 +62,11 @@ put.resolve = (...args) => {
   return eff
 }
 
-put.sync = deprecate(put.resolve, deprecationWarning('put.sync', 'put.resolve'))
+put.sync = deprecate(put.resolve, updateIncentive('put.sync', 'put.resolve'))
+
+export function all(effects) {
+  return effect(ALL, effects)
+}
 
 export function race(effects) {
   return effect(RACE, effects)
@@ -76,6 +80,9 @@ function getFnCallDesc(meth, fn, args) {
     [context, fn] = fn
   } else if(fn.fn) {
     ({context, fn} = fn)
+  }
+  if (context && is.string(fn) && is.func(context[fn])) {
+    fn = context[fn]
   }
   check(fn, is.func, `${meth}: argument ${fn} is not a function`)
 
@@ -106,7 +113,7 @@ export function spawn(fn, ...args) {
 
 export function join(...tasks) {
   if (tasks.length > 1) {
-    return tasks.map(t => join(t))
+    return all(tasks.map(t => join(t)))
   }
   const task = tasks[0]
   check(task, is.notUndef, 'join(task): argument task is undefined')
@@ -116,7 +123,7 @@ export function join(...tasks) {
 
 export function cancel(...tasks) {
   if (tasks.length > 1) {
-    return tasks.map(t => cancel(t))
+    return all(tasks.map(t => cancel(t)))
   }
   const task = tasks[0]
   if (tasks.length === 1) {
@@ -157,6 +164,16 @@ export function flush(channel) {
   return effect(FLUSH, channel)
 }
 
+export function getContext(prop) {
+  check(prop, is.string, `getContext(prop): argument ${ prop } is not a string`)
+  return effect(GET_CONTEXT, prop)
+}
+
+export function setContext(props) {
+  check(props, is.object, createSetContextWarning(null, props))
+  return effect(SET_CONTEXT, props)
+}
+
 export function takeEvery(patternOrChannel, worker, ...args) {
   return fork(takeEveryHelper, patternOrChannel, worker, ...args)
 }
@@ -174,6 +191,7 @@ const createAsEffectType = type => effect => effect && effect[IO] && effect[type
 export const asEffect = {
   take         : createAsEffectType(TAKE),
   put          : createAsEffectType(PUT),
+  all          : createAsEffectType(ALL),
   race         : createAsEffectType(RACE),
   call         : createAsEffectType(CALL),
   cps          : createAsEffectType(CPS),
@@ -183,5 +201,7 @@ export const asEffect = {
   select       : createAsEffectType(SELECT),
   actionChannel: createAsEffectType(ACTION_CHANNEL),
   cancelled    : createAsEffectType(CANCELLED),
-  flush        : createAsEffectType(FLUSH)
+  flush        : createAsEffectType(FLUSH),
+  getContext   : createAsEffectType(GET_CONTEXT),
+  setContext   : createAsEffectType(SET_CONTEXT)
 }

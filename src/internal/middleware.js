@@ -1,20 +1,10 @@
-import { noop, is, check, uid as nextSagaId, wrapSagaDispatch, isDev, log } from './utils'
-import proc from './proc'
+import { is, check, object, createSetContextWarning } from './utils'
 import { emitter } from './channel'
 import { ident } from './utils'
+import { runSaga } from './runSaga'
 
-export default function sagaMiddlewareFactory(options = {}) {
-  let runSagaDynamically
-  const {sagaMonitor} = options
-
-  // monitors are expected to have a certain interface, let's fill-in any missing ones
-  if(sagaMonitor) {
-    sagaMonitor.effectTriggered = sagaMonitor.effectTriggered || noop
-    sagaMonitor.effectResolved = sagaMonitor.effectResolved || noop
-    sagaMonitor.effectRejected = sagaMonitor.effectRejected || noop
-    sagaMonitor.effectCancelled = sagaMonitor.effectCancelled || noop
-    sagaMonitor.actionDispatched = sagaMonitor.actionDispatched || noop
-  }
+export default function sagaMiddlewareFactory({ context = {}, ...options } = {}) {
+  const {sagaMonitor, logger, onError} = options
 
   if(is.func(options)) {
     if (process.env.NODE_ENV === 'production') {
@@ -35,17 +25,15 @@ export default function sagaMiddlewareFactory(options = {}) {
 
   }
 
-  if(options.logger && !is.func(options.logger)) {
+  if(logger && !is.func(logger)) {
     throw new Error('`options.logger` passed to the Saga middleware is not a function!')
   }
 
-  if(options.onerror) {
-    if(isDev) log('warn', '`options.onerror` is deprecated. Use `options.onError` instead.')
-    options.onError = options.onerror
-    delete options.onerror
+  if (process.env.NODE_ENV === 'development' && options.onerror) {
+    throw new Error('`options.onerror` was removed. Use `options.onError` instead.')
   }
 
-  if(options.onError && !is.func(options.onError)) {
+  if(onError && !is.func(onError)) {
     throw new Error('`options.onError` passed to the Saga middleware is not a function!')
   }
 
@@ -53,26 +41,21 @@ export default function sagaMiddlewareFactory(options = {}) {
     throw new Error('`options.emitter` passed to the Saga middleware is not a function!')
   }
 
-  function sagaMiddleware({getState, dispatch}) {
-    runSagaDynamically = runSaga
+  function sagaMiddleware({ getState, dispatch }) {
     const sagaEmitter = emitter()
-    sagaEmitter.emit = (options.emitter || ident)(sagaEmitter.emit)
-    const sagaDispatch = wrapSagaDispatch(dispatch)
+    sagaEmitter.emit = (options.emitter || ident)(sagaEmitter.emit);
 
-    function runSaga(saga, args, sagaId) {
-      return proc(
-        saga(...args),
-        sagaEmitter.subscribe,
-        sagaDispatch,
-        getState,
-        options,
-        sagaId,
-        saga.name
-      )
-    }
+    sagaMiddleware.run = runSaga.bind(null, {
+      subscribe: sagaEmitter.subscribe,
+      dispatch,
+      getState,
+      sagaMonitor,
+      logger,
+      onError
+    })
 
     return next => action => {
-      if(sagaMonitor) {
+      if(sagaMonitor && sagaMonitor.actionDispatched) {
         sagaMonitor.actionDispatched(action)
       }
       const result = next(action) // hit reducers
@@ -81,19 +64,11 @@ export default function sagaMiddlewareFactory(options = {}) {
     }
   }
 
-  sagaMiddleware.run = (saga, ...args) => {
-    check(runSagaDynamically, is.notUndef, 'Before running a Saga, you must mount the Saga middleware on the Store using applyMiddleware')
-    check(saga, is.func, 'sagaMiddleware.run(saga, ...args): saga argument must be a Generator function!')
+  sagaMiddleware.run = () => { throw new Error('Before running a Saga, you must mount the Saga middleware on the Store using applyMiddleware') }
 
-    const effectId = nextSagaId()
-    if(sagaMonitor) {
-      sagaMonitor.effectTriggered({effectId , root: true, parentEffectId: 0, effect: {root: true, saga, args}})
-    }
-    const task = runSagaDynamically(saga, args, effectId)
-    if(sagaMonitor) {
-      sagaMonitor.effectResolved(effectId, task)
-    }
-    return task
+  sagaMiddleware.setContext = (props) => {
+    check(props, is.object, createSetContextWarning('sagaMiddleware', props))
+    object.assign(context, props)
   }
 
   return sagaMiddleware

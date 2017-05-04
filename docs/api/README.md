@@ -17,6 +17,7 @@
   * [`put(channel, action)`](#putchannel-action)
   * [`call(fn, ...args)`](#callfn-args)
   * [`call([context, fn], ...args)`](#callcontext-fn-args)
+  * [`call([context, fnName], ...args)`](#callcontext-fnname-args)
   * [`apply(context, fn, args)`](#applycontext-fn-args)
   * [`cps(fn, ...args)`](#cpsfn-args)
   * [`cps([context, fn], ...args)`](#cpscontext-fn-args)
@@ -33,22 +34,27 @@
   * [`actionChannel(pattern, [buffer])`](#actionchannelpattern-buffer)
   * [`flush(channel)`](#flushchannel)
   * [`cancelled()`](#cancelled)
+  * [`setContext(props)`](#setcontextprops)
+  * [`getContent(prop)`](#getcontextprop)
 * [`Effect combinators`](#effect-combinators)
   * [`race(effects)`](#raceeffects)
-  * [`[...effects] (aka parallel effects)`](#effects-parallel-effects)
+  * [`all([...effects]) (aka parallel effects)`](#alleffects-parallel-effects)
+  * [`all(effects)`](#alleffects)
 * [`Interfaces`](#interfaces)
   * [`Task`](#task)
   * [`Channel`](#channel)
   * [`Buffer`](#buffer)
   * [`SagaMonitor`](#sagamonitor)
 * [`External API`](#external-api)
-  * [`runSaga(iterator, options)`](#runsagaiterator-options)
+  * [`runSaga(options, saga, ...args)`](#runsagaoptions-saga-args)
 * [`Utils`](#utils)
   * [`channel([buffer])`](#channelbuffer)
   * [`eventChannel(subscribe, [buffer], matcher)`](#eventchannelsubscribe-buffer-matcher)
   * [`buffers`](#buffers)
   * [`delay(ms, [val])`](#delayms-val)
   * [`cloneableGenerator(generatorFunc)`](#cloneablegeneratorgeneratorfunc)
+  * [`createMockTask()`](#createmocktask)
+
 
 # Cheatsheets
 
@@ -407,6 +413,10 @@ Generator, the error will propagate to the calling Generator.
 Same as `call(fn, ...args)` but supports passing a `this` context to `fn`. This is useful to
 invoke object methods.
 
+### `call([context, fnName], ...args)`
+
+Same as `call([context, fn], ...args)` but supports passing a `fn` as string. Useful for invoking object's methods, i.e. `yield call([localStorage, 'getItem'], 'redux-saga')`
+
 ### `apply(context, fn, [args])`
 
 Alias for `call([context, fn], ...args)`.
@@ -497,7 +507,7 @@ of a previously forked task.
 #### Notes
 
 `join` will resolve to the same outcome of the joined task (success or error). If the joined
-the task is cancelled, the cancellation will also propagate to the Saga executing the join effect
+task is cancelled, the cancellation will also propagate to the Saga executing the join
 effect. Similarly, any potential callers of those joiners will be cancelled as well.
 
 ### `join(...tasks)`
@@ -508,7 +518,8 @@ Creates an Effect description that instructs the middleware to wait for the resu
 
 #### Notes
 
-It simply wraps automatically array of tasks in [join effects](#jointask), so it becomes roughly equivalent of `yield tasks.map(t => join(t))`.
+It simply wraps the array of tasks in [join effects](#jointask), roughly becoming the equivalent of 
+`yield tasks.map(t => join(t))`.
 
 ### `cancel(task)`
 
@@ -569,7 +580,8 @@ Creates an Effect description that instructs the middleware to cancel previously
 
 #### Notes
 
-It simply wraps automatically array of tasks in [cancel effects](#canceltask), so it becomes roughly equivalent of `yield tasks.map(t => cancel(t))`.
+It simply wraps the array of tasks in [cancel effects](#canceltask), roughly becoming the equivalent of 
+`yield tasks.map(t => cancel(t))`.
 
 ### `cancel()`
 
@@ -738,12 +750,20 @@ function* saga() {
 }
 ```
 
+### `setContext(props)`
+
+TODO: help wanted
+
+### `getContext(prop)`
+
+TODO: help wanted
+
 ## Effect combinators
 
 ### `race(effects)`
 
 Creates an Effect description that instructs the middleware to run a *Race* between
-multiple Effects (this is similar to how `Promise.race([...])` behaves).
+multiple Effects (this is similar to how [`Promise.race([...])`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise/race) behaves).
 
 `effects: Object` - a dictionary Object of the form {label: effect, ...}
 
@@ -776,10 +796,10 @@ will be a single keyed object `{cancel: action}`, where action is the dispatched
 
 When resolving a `race`, the middleware automatically cancels all the losing Effects.
 
-### `[...effects] (parallel effects)`
+### `all([...effects]) - parallel effects`
 
 Creates an Effect description that instructs the middleware to run multiple Effects
-in parallel and wait for all of them to complete.
+in parallel and wait for all of them to complete. It's quite the corresponding API to standard [`Promise#all`](https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Global_Objects/Promise/all).
 
 #### Example
 
@@ -789,10 +809,31 @@ The following example runs two blocking calls in parallel:
 import { fetchCustomers, fetchProducts } from './path/to/api'
 
 function* mySaga() {
-  const [customers, products] = yield [
+  const [customers, products] = yield all([
     call(fetchCustomers),
     call(fetchProducts)
-  ]
+  ])
+}
+```
+
+### `all(effects)`
+
+The same as [`all([...effects])`](#alleffects-parallel-effects) but let's you to pass in a dictionary object of effects with labels, just like [`race(effects)`](#alleffects)
+
+`effects: Object` - a dictionary Object of the form {label: effect, ...}
+
+#### Example
+
+The following example runs two blocking calls in parallel:
+
+```javascript
+import { fetchCustomers, fetchProducts } from './path/to/api'
+
+function* mySaga() {
+  const { customers, products } = yield all({
+    customers: call(fetchCustomers),
+    products: call(fetchProducts)
+  })
 }
 ```
 
@@ -939,15 +980,12 @@ Below the signature for each method
 ## External API
 ------------------------
 
-### `runSaga(iterator, options)`
+### `runSaga(options, saga, ...args)`
 
 Allows starting sagas outside the Redux middleware environment. Useful if you want to
 connect a Saga to external input/output, other than store actions.
 
 `runSaga` returns a Task object. Just like the one returned from a `fork` effect.
-
-
-- `iterator: {next, throw}` - an Iterator object, Typically created by invoking a Generator function
 
 - `options: Object` - currently supported options are:
 
@@ -963,9 +1001,13 @@ connect a Saga to external input/output, other than store actions.
 
   - `sagaMonitor` : [SagaMonitor](#sagamonitor) - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
 
-  - `logger` : `Function` - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
+  - `logger: Function` - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
 
-  - `onError`: `Function` - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
+  - `onError: Function` - see docs for [`createSagaMiddleware(options)`](#createsagamiddlewareoptions)
+
+- `saga: Function` - a Generator function
+
+- `args: Array<any>` - arguments to be provided to `saga`
 
 #### Notes
 
@@ -1056,8 +1098,8 @@ For testing purpose only.
 
 #### Example
 
-This is usefull when you want to test different branch of a saga without having to replay the actions that lead to it.
- 
+This is useful when you want to test different branch of a saga without having to replay the actions that lead to it.
+
 ```javascript
 
 function* oddOrEven() {
@@ -1065,7 +1107,7 @@ function* oddOrEven() {
   yield 1;
   yield 2;
   yield 3;
-  
+
   const userInput = yield 'enter a number';
   if (userInput % 2 === 0) {
     yield 'even';
@@ -1077,71 +1119,77 @@ function* oddOrEven() {
 test('my oddOrEven saga', assert => {
   const data = {};
   data.gen = cloneableGenerator(oddOrEven)();
- 
+
   assert.equal(
     data.gen.next().value,
     1,
     'it should yield 1'
   );
-  
+
   assert.equal(
     data.gen.next().value,
     2,
     'it should yield 2'
   );
-  
+
   assert.equal(
     data.gen.next().value,
     3,
     'it should yield 3'
   );
-  
+
   assert.equal(
     data.gen.next().value,
     'enter a number',
     'it should ask for a number'
   );
-  
+
   assert.test('even number is given', a => {
     // we make a clone of the generator before giving the number;
     data.clone = data.gen.clone();
-    
+
     a.equal(
       data.gen.next(2).value,
       'even',
       'it should yield "event"'
     );
-    
+
     a.equal(
       data.gen.next().done,
       true,
       'it should be done'
     );
-    
+
     a.end();
   });
-  
+
   assert.test('odd number is given', a => {
-    
+
     a.equal(
       data.clone.next(1).value,
       'odd',
       'it should yield "odd"'
     );
-    
+
     a.equal(
       data.clone.next().done,
       true,
       'it should be done'
     );
-    
+
     a.end();
   });
-  
+
   assert.end();
 });
 
 ```
+### `createMockTask()`
+
+Returns an object that mocks a task.
+For testing purposes only.
+[See Task Cancellation docs for more information.](/docs/advanced/TaskCancellation.md#testing-generators-with-fork-effect)
+)
 
 ## Cheatsheets
 
